@@ -1,0 +1,103 @@
+#!/bin/bash
+
+YELLOW=`tput setaf 3`
+GREEN=`tput setaf 2`
+RED=`tput setaf 1`
+NC=`tput sgr0` # No Color
+
+sessions=0
+session_start=true
+work_minutes=25
+script_directory=$(dirname $BASH_SOURCE[0])
+if [[ -n "$1" ]]; then
+    work_minutes=$1
+fi
+
+echo "Configured to $work_minutes minutes."
+
+playSound () {
+    play $script_directory/ding.wav > /dev/null 2>1 &
+}
+
+displayTime () {
+    SECONDS=$1
+    if (( $SECONDS > 3600 )) ; then
+        let "hours=SECONDS/3600"
+        let "minutes=(SECONDS%3600)/60"
+        let "seconds=(SECONDS%3600)%60"
+        echo "$hours hour(s), $minutes minute(s) and $seconds second(s)"
+    elif (( $SECONDS > 60 )) ; then
+        let "minutes=(SECONDS%3600)/60"
+        let "seconds=(SECONDS%3600)%60"
+        echo "$minutes minute(s) and $seconds second(s)"
+    else
+        echo "$SECONDS seconds"
+    fi
+}
+
+waitForXSeconds () {
+    seconds_past=0
+    while [[ ${seconds_past} -lt $1 ]]; do
+        echo -ne "\e[0K\r$(displayTime $seconds_past)"
+        sleep 1
+        seconds_past=$(($seconds_past+1))
+        echo -ne "\e[0K\r$(displayTime $seconds_past)"
+    done
+    echo ""
+}
+
+workSession () {
+    echo "Start work session for $GREEN$1 minutes$NC"
+    playSound
+    waitForXSeconds $(($1*60))
+    playSound
+    notify-send "Break Time!" "Time to sit back and take a break"
+    postWork
+}
+
+breakSession () {
+    echo "Started break for $YELLOW$1 minutes$NC"
+    playSound
+    waitForXSeconds $(($1*60))
+    playSound
+    notify-send "Work Time!" "Let's get back to work now."
+    postBreak
+}
+
+postWork() {
+    read  -n 1 -p "Press c to take a ${YELLOW}break$NC (or x for 5 more minutes):" userinput
+    echo ""
+    if ${session_start}; then
+        session_start=false
+        sessions+=$(($sessions+1))
+        if [[ $sessions == "1" ]]; then
+            echo "${GREEN}Finished $sessions session!$NC"
+        else
+            echo "${GREEN}Finished $sessions sessions!$NC"
+        fi
+    fi
+    if [[ "$userinput" == 'c' ]]; then
+      breakSession 5
+    elif [[ "$userinput" == 'x' ]]; then
+      workSession 5
+    else
+      >&2 echo "Error: ${RED}That's not an option: $userinput${NC}"
+      postWork
+    fi
+}
+
+postBreak() {
+    read  -n 1 -p "Press c to goto ${GREEN}work$NC (or x for 5 more minutes):" userinput
+    echo ""
+    if [[ "$userinput" == 'c' ]]; then
+      session_start=true
+      workSession ${work_minutes}
+    elif [[ "$userinput" == 'x' ]]; then
+      breakSession 5
+    else
+      >&2 echo "Error: ${RED}That's not an option: $userinput${NC}"
+      postBreak
+    fi
+}
+
+workSession ${work_minutes}
