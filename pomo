@@ -20,7 +20,7 @@ playSound () {
 }
 
 displayTime () {
-    SECONDS=$1
+    SECONDS=$(($2 - $1))
     if (( $SECONDS > 3600 )) ; then
         let "hours=SECONDS/3600"
         let "minutes=(SECONDS%3600)/60"
@@ -38,10 +38,10 @@ displayTime () {
 waitForXSeconds () {
     seconds_past=0
     while [[ ${seconds_past} -lt $1 ]]; do
-        echo -ne "\e[0K\r$(displayTime $seconds_past)"
+        echo -ne "\e[0K\r$(displayTime $seconds_past $1)"
         sleep 1
         seconds_past=$(($seconds_past+1))
-        echo -ne "\e[0K\r$(displayTime $seconds_past)"
+        echo -ne "\e[0K\r$(displayTime $seconds_past $1)"
     done
     echo ""
 }
