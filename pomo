@@ -9,14 +9,27 @@ sessions=0
 session_start=true
 work_minutes=25
 script_directory=$(dirname $BASH_SOURCE[0])
-if [[ -n "$1" ]]; then
+start_with="work"
+
+if [[ -n "$2" ]]; then
+    start_with=$1
+    work_minutes=$2
+elif [[ -n "$1" ]]; then
     work_minutes=$1
 fi
+
+re='^[0-9]+$'
+if ! [[ $work_minutes =~ $re ]] ; then
+   echo "${RED}error: Not a number: $work_minutes. work minutes set to 25, starting with $work_minutes $NC" >&2;
+   start_with=$work_minutes
+   work_minutes=25
+fi
+
 
 echo "Configured to $work_minutes minutes."
 
 playSound () {
-    play $script_directory/ding.wav > /dev/null 2>1 &
+    play $script_directory/ding.wav > /dev/null 2>&1 &
 }
 
 displayTime () {
@@ -25,14 +38,16 @@ displayTime () {
         let "hours=SECONDS/3600"
         let "minutes=(SECONDS%3600)/60"
         let "seconds=(SECONDS%3600)%60"
-        echo "$hours hour(s), $minutes minute(s) and $seconds second(s)"
+        result="${hours}h ${minutes}m ${seconds}s"
     elif (( $SECONDS > 60 )) ; then
         let "minutes=(SECONDS%3600)/60"
         let "seconds=(SECONDS%3600)%60"
-        echo "$minutes minute(s) and $seconds second(s)"
+        result="${minutes}m ${seconds}s"
     else
-        echo "$SECONDS seconds"
+        result="${SECONDS}s"
     fi
+    echo $result
+    echo $result > ~/.pomobar
 }
 
 waitForXSeconds () {
@@ -51,7 +66,7 @@ workSession () {
     playSound
     waitForXSeconds $(($1*60))
     playSound
-    notify-send "Break Time!" "Time to sit back and take a break"
+    notify-send "Break Time!" "Time to sit back and take a break" &
     postWork
 }
 
@@ -60,7 +75,7 @@ breakSession () {
     playSound
     waitForXSeconds $(($1*60))
     playSound
-    notify-send "Work Time!" "Let's get back to work now."
+    notify-send "Work Time!" "Let's get back to work now." &
     postBreak
 }
 
@@ -100,4 +115,11 @@ postBreak() {
     fi
 }
 
-workSession ${work_minutes}
+if [[ "$start_with" == "work" ]]; then
+    workSession ${work_minutes}
+elif [[ "$start_with" == "break" ]]; then
+    breakSession 5
+else
+    echo "${RED}First argument unrecognised: $start_with.$NC"
+    workSession ${work_minutes}
+fi
