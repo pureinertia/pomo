@@ -8,15 +8,23 @@ NC=`tput sgr0` # No Color
 sessions=0
 session_start=true
 work_minutes=25
+start_minutes=25
 script_directory=$(dirname $BASH_SOURCE[0])
 start_with="work"
 
-if [[ -n "$2" ]]; then
-    start_with=$1
-    work_minutes=$2
-elif [[ -n "$1" ]]; then
-    work_minutes=$1
-fi
+while [[ -n "$1" ]]; do
+    if [[ $1 == "--start" ]] || [[ $1 == "-s" ]]; then
+        start_minutes=$2
+        shift
+    elif [[ -n "$2" ]]; then
+        start_with=$1
+        start_minutes=$2
+        shift
+    else
+        work_minutes=$1
+    fi
+    shift
+done
 
 re='^[0-9]+$'
 if ! [[ $work_minutes =~ $re ]] ; then
@@ -24,7 +32,6 @@ if ! [[ $work_minutes =~ $re ]] ; then
    start_with=$work_minutes
    work_minutes=25
 fi
-
 
 echo "Configured to $work_minutes minutes."
 
@@ -84,7 +91,7 @@ postWork() {
     echo ""
     if ${session_start}; then
         session_start=false
-        sessions+=$(($sessions+1))
+        sessions=$(($sessions+1))
         if [[ $sessions == "1" ]]; then
             echo "${GREEN}Finished $sessions session!$NC"
         else
@@ -118,7 +125,7 @@ postBreak() {
 if [[ "$start_with" == "work" ]]; then
     workSession ${work_minutes}
 elif [[ "$start_with" == "break" ]]; then
-    breakSession 5
+    breakSession ${start_minutes}
 else
     echo "${RED}First argument unrecognised: $start_with.$NC"
     workSession ${work_minutes}
